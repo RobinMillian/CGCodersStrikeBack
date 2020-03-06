@@ -59,20 +59,24 @@ int main()
                 turnCompleted = !turnCompleted;
             }
         }        
-        if ((nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 3)) {
-             thurst = 0;
-             if (turnCompleted) {
-                 currentCheckpointIndex = distance(checkpoints.begin(), itr);
-                 cout << checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].x << " " <<  checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].y << " " << thurst << endl;
-                 
+        if (turnCompleted && (nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 4)) {
+             currentCheckpointIndex = distance(checkpoints.begin(), itr);
+             if (turnCompleted && nextCheckpointDist <= dist(current.x, current.y, last.x, last.y)) {
+             thurst = 100;
              } else {
-                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+                 thurst = 0;
             }
+            if (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)
+                thurst = 0;
+
+            cout << checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].x << " " <<  checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].y << " " << thurst << endl;  
         } else {
             if (!usedBoost && (nextCheckpointDist >= dist(current.x, current.y, last.x, last.y) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
                 cout << nextCheckpoint.x << " " << nextCheckpoint.y << " BOOST" << endl;
                 usedBoost = !usedBoost;
             } else {
+                if (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)
+                    thurst = 0;
                 cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
             }
 
