@@ -6,6 +6,19 @@
 
 using namespace std;
 
+
+class Position {
+    public:
+    Position() { x = 0; y = 0;};
+    Position(const Position &pos) {
+        x = pos.x;
+        y = pos.y;
+    };
+        int x;
+        int y;
+        inline bool operator==(const Position &rhs) const {return x == rhs.x && y == rhs.y;};
+};
+
 /**
  * This code automatically collects game data in an infinite loop.
  * It uses the standard input to place data into the game variables such as x and y.
@@ -18,39 +31,58 @@ float dist(float x, float y, float lastx, float lasty) {
 
 int main()
 {
-    int lastx = 0;
-    int lasty = 0;
+    Position last;
     bool usedBoost = false;
+    vector<Position> checkpoints;
+    bool turnCompleted = false;
+    int currentCheckpointIndex = 0;
+
     // game loop
     while (1) {
-        int x; // x position of your pod
-        int y; // y position of your pod
-        int nextCheckpointX; // x position of the next check point
-        int nextCheckpointY; // y position of the next check point
+        Position current;
         int nextCheckpointAngle;
         int nextCheckpointDist;
         int thurst = 100;
-        int opponentX;
-        int opponentY;
-        cin >> x >> y >> nextCheckpointX >> nextCheckpointY >> nextCheckpointDist >> nextCheckpointAngle; cin.ignore();
-        cin >> opponentX >> opponentY; cin.ignore();
+        vector<Position>::iterator itr;
+        Position opponent;
+        Position nextCheckpoint;
+        cin >> current.x >> current.y >> nextCheckpoint.x >> nextCheckpoint.y >> nextCheckpointDist >> nextCheckpointAngle; cin.ignore();
+        cin >> opponent.x >> opponent.y; cin.ignore();
         // Write an action using cout. DON'T FORGET THE "<< endl"
         // To debug: cerr << "Debug messages..." << endl;
-        if ((nextCheckpointDist <= dist(x, y, lastx, lasty) * 3)) {
+        itr = find(checkpoints.begin(), checkpoints.end(), nextCheckpoint);
+        if (!turnCompleted) {
+            if (itr == checkpoints.end()) {
+                checkpoints.push_back(nextCheckpoint);
+            }
+            if (!checkpoints.empty() && nextCheckpoint == checkpoints[0] && checkpoints.size() > 1) {
+                turnCompleted = !turnCompleted;
+            }
+        }        
+        if ((nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 3)) {
              thurst = 0;
-        }
-        
-        if (!usedBoost && (nextCheckpointDist >= dist(x, y, lastx, lasty) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
-            cout << nextCheckpointX << " " << nextCheckpointY << " BOOST" << endl;
-            usedBoost = !usedBoost;
+             if (turnCompleted) {
+                 currentCheckpointIndex = distance(checkpoints.begin(), itr);
+                 cout << checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].x << " " <<  checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].y << " " << thurst << endl;
+                 
+             } else {
+                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+            }
         } else {
-            cout << nextCheckpointX << " " << nextCheckpointY << " " << thurst << endl;
+            if (!usedBoost && (nextCheckpointDist >= dist(current.x, current.y, last.x, last.y) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
+                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " BOOST" << endl;
+                usedBoost = !usedBoost;
+            } else {
+                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+            }
+
         }
+
 
         // Edit this line to output the target position
         // and thrust (0 <= thrust <= 100)
         // i.e.: "x y thrust"
-        lastx = x;
-        lasty = y;
+        last.x = current.x;
+        last.y = current.y;
     }
 }
