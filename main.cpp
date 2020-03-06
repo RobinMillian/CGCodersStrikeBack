@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 using namespace std;
 
@@ -11,9 +12,15 @@ using namespace std;
  * YOU DO NOT NEED TO MODIFY THE INITIALIZATION OF THE GAME VARIABLES.
  **/
 
+float dist(float x, float y, float lastx, float lasty) {
+    return sqrt((lastx - x) * (lastx - x) + (lasty - y) * (lasty - y));
+}
+
 int main()
 {
-
+    int lastx = 0;
+    int lasty = 0;
+    bool usedBoost = false;
     // game loop
     while (1) {
         int x; // x position of your pod
@@ -29,18 +36,21 @@ int main()
         cin >> opponentX >> opponentY; cin.ignore();
         // Write an action using cout. DON'T FORGET THE "<< endl"
         // To debug: cerr << "Debug messages..." << endl;
-
-        if (nextCheckpointAngle > 90 || nextCheckpointAngle < -90) {
+        if ((nextCheckpointDist <= dist(x, y, lastx, lasty) * 3)) {
              thurst = 0;
+        }
+        
+        if (!usedBoost && (nextCheckpointDist >= dist(x, y, lastx, lasty) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
+            cout << nextCheckpointX << " " << nextCheckpointY << " BOOST" << endl;
+            usedBoost = !usedBoost;
         } else {
-         thurst = 100;
+            cout << nextCheckpointX << " " << nextCheckpointY << " " << thurst << endl;
         }
 
         // Edit this line to output the target position
         // and thrust (0 <= thrust <= 100)
         // i.e.: "x y thrust"
-        cout << nextCheckpointX << " " << nextCheckpointY << " " << thurst << endl;
-
-
+        lastx = x;
+        lasty = y;
     }
 }
