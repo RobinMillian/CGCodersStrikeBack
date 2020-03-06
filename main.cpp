@@ -17,6 +17,7 @@ class Position {
         int x;
         int y;
         inline bool operator==(const Position &rhs) const {return x == rhs.x && y == rhs.y;};
+        inline bool operator!=(const Position &rhs) const {return x!= rhs.x && y != rhs.y;};
 };
 
 /**
@@ -36,7 +37,8 @@ int main()
     vector<Position> checkpoints;
     bool turnCompleted = false;
     int currentCheckpointIndex = 0;
-
+    int turn = 1;
+    Position previousCheckpoint;
     // game loop
     while (1) {
         Position current;
@@ -50,7 +52,10 @@ int main()
         cin >> opponent.x >> opponent.y; cin.ignore();
         // Write an action using cout. DON'T FORGET THE "<< endl"
         // To debug: cerr << "Debug messages..." << endl;
+        if (!checkpoints.empty() && nextCheckpoint == checkpoints[1] && checkpoints.size() > 2 && previousCheckpoint != nextCheckpoint)
+            turn++;
         itr = find(checkpoints.begin(), checkpoints.end(), nextCheckpoint);
+        cerr << turn << endl;
         if (!turnCompleted) {
             if (itr == checkpoints.end()) {
                 checkpoints.push_back(nextCheckpoint);
@@ -58,18 +63,21 @@ int main()
             if (!checkpoints.empty() && nextCheckpoint == checkpoints[0] && checkpoints.size() > 1) {
                 turnCompleted = !turnCompleted;
             }
-        }        
-        if (turnCompleted && (nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 4)) {
+        }
+        if (turn == 3 && nextCheckpoint == checkpoints[checkpoints.size() - 1]) {
+            thurst = 100;
+            cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+        }
+        else if (turnCompleted && (nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 4)) {
              currentCheckpointIndex = distance(checkpoints.begin(), itr);
              if (turnCompleted && nextCheckpointDist <= dist(current.x, current.y, last.x, last.y)) {
-             thurst = 100;
+                thurst = 100;
              } else {
                  thurst = 0;
-            }
+             }
             if (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)
                 thurst = 0;
-
-            cout << checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].x << " " <<  checkpoints[currentCheckpointIndex + 1 % checkpoints.size()].y << " " << thurst << endl;  
+            cout << checkpoints[(currentCheckpointIndex + 1) % checkpoints.size()].x << " " <<  checkpoints[(currentCheckpointIndex + 1) % checkpoints.size()].y << " " << thurst << endl;  
         } else {
             if (!usedBoost && (nextCheckpointDist >= dist(current.x, current.y, last.x, last.y) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
                 cout << nextCheckpoint.x << " " << nextCheckpoint.y << " BOOST" << endl;
@@ -88,5 +96,6 @@ int main()
         // i.e.: "x y thrust"
         last.x = current.x;
         last.y = current.y;
+        previousCheckpoint = nextCheckpoint;
     }
 }
