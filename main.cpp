@@ -39,6 +39,7 @@ int main()
     int currentCheckpointIndex = 0;
     int turn = 1;
     Position previousCheckpoint;
+    float angleNextCheckpoint;
     // game loop
     while (1) {
         Position current;
@@ -65,32 +66,42 @@ int main()
             }
         }
         if (turn == 3 && nextCheckpoint == checkpoints[checkpoints.size() - 1]) {
+            Position dirPod;
+            Position dirNextCheckpoint;
+            dirPod.x = last.x - current.x;
+            dirPod.y = last.y - current.y;
+            dirNextCheckpoint.x = last.x - nextCheckpoint.x;
+            dirNextCheckpoint.y = last.y - nextCheckpoint.y;
+            angleNextCheckpoint = (dirPod.x * dirNextCheckpoint.x + dirPod.y * dirNextCheckpoint.y) / (dist(current.x, current.y, last.x, last.y) * dist(last.x, last.y, nextCheckpoint.x, nextCheckpoint.y));
+            angleNextCheckpoint = acos(angleNextCheckpoint)  * 180 / 3.14;
             thurst = 100;
+        if (!usedBoost && (angleNextCheckpoint >= -15 && angleNextCheckpoint <= 15)) {
+                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " BOOST" << endl;
+                usedBoost = !usedBoost;
+        } else if (nextCheckpointAngle > 45 || nextCheckpointAngle < -45) {
+                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << 0 << endl;
+        } else {
             cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+            }
         }
         else if (turnCompleted && (nextCheckpointDist <= dist(current.x, current.y, last.x, last.y) * 4)) {
-             currentCheckpointIndex = distance(checkpoints.begin(), itr);
-             if (turnCompleted && nextCheckpointDist <= dist(current.x, current.y, last.x, last.y)) {
+            currentCheckpointIndex = distance(checkpoints.begin(), itr);
+            if (turnCompleted && nextCheckpointDist <= dist(current.x, current.y, last.x, last.y)) {
                 thurst = 100;
-             } else {
+            } else if (angleNextCheckpoint <= 20 && angleNextCheckpoint >= -20 && nextCheckpointAngle <= 20 && nextCheckpointAngle >= -20) {
+                thurst = 100;
+            } else {
                  thurst = 0;
-             }
+                 //cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
+            }
             if (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)
                 thurst = 0;
             cout << checkpoints[(currentCheckpointIndex + 1) % checkpoints.size()].x << " " <<  checkpoints[(currentCheckpointIndex + 1) % checkpoints.size()].y << " " << thurst << endl;  
         } else {
-            if (!usedBoost && (nextCheckpointDist >= dist(current.x, current.y, last.x, last.y) * 10) && (nextCheckpointAngle > -20 && nextCheckpointAngle < 20)) {
-                cout << nextCheckpoint.x << " " << nextCheckpoint.y << " BOOST" << endl;
-                usedBoost = !usedBoost;
-            } else {
                 if (nextCheckpointAngle > 60 || nextCheckpointAngle < -60)
                     thurst = 0;
                 cout << nextCheckpoint.x << " " << nextCheckpoint.y << " " << thurst << endl;
-            }
-
         }
-
-
         // Edit this line to output the target position
         // and thrust (0 <= thrust <= 100)
         // i.e.: "x y thrust"
