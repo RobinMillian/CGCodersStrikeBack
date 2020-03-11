@@ -197,7 +197,7 @@ class Pod: public Unit {
     public:
         Pod() { r = 400;};
         float angle;
-        int checkpointsCount = 0;
+        int checkpointsCount;
         int nextCheckpointId = 1;
         int checked = 0;
         int timeout = 100;
@@ -224,7 +224,7 @@ class Pod: public Unit {
             angle = p.angle;
             checkpointsCount = p.checkpointsCount;
             nextCheckpointId = p.nextCheckpointId;
-            checkpointsCount = p.checked;
+            checked = p.checked;
             timeout = p.timeout;
             partner = p.partner;
             shield = p.shield;
@@ -232,11 +232,11 @@ class Pod: public Unit {
         }
         Pod &operator=(const Move &m) {
             angle += m.angle;
-            if (angle >= 360.0) {
+/*            if (angle >= 360.0) {
                 angle = angle - 360.0;
             } else if (angle < 0.0) {
                 angle += 360.0;
-            }
+            }*/
             boost(m.thurst);
             return *this;
         }
@@ -299,13 +299,19 @@ class Pod: public Unit {
             timeout = 100;
             checked++;
             nextCheckpointId = nextCheckpointId + 1 >= checkpointsCount ? 0 : nextCheckpointId + 1;
+          //  cerr << "nextCheckpoinId == "<< nextCheckpointId << endl;
+        //    cerr << "checkpointsCOunt == " << checkpointsCount << endl;
         };
         float score(const Checkpoint &checkpoint) {
-            return checked * 500000 - dist(checkpoint);
+            if (timeout <= 0)
+                return -9000000;
+//            if (checked != 0 && nextCheckpointId == 2 && frame >= 100)
+  //          cerr << "checked * 500000 == " << checked * 500000 << endl;
+            return checked * 5000 - (dist(checkpoint) * 0.1);
         };
         // void bounce() {};
 
-        void output(const Move &move) {
+        void output(Move &move) {
             float a = angle + move.angle;
 
             if (a >= 360.0) {
@@ -319,6 +325,9 @@ class Pod: public Unit {
             a = a * 3.14 / 180.0;
             float px = x + cos(a) * 10000.0;
             float py = y + sin(a) * 10000.0;
+            if (move.thurst >= 20) {
+                move.thurst = 100;
+            }
             cout << round(px) << " " << round(py) << " " << move.thurst << endl;
         }
 };
@@ -329,12 +338,17 @@ void play(Pod pods[2], Checkpoint checkpoints[]) {
     while (t < 1.0) {
         int index = 0;
         Coll *collision = nullptr;
+        Coll *firstCol = nullptr;
         for (int i = 0; i < 2 ; i++) {
-            collision = pods[i].collision(checkpoints[pods[i].nextCheckpointId]);
-            if (collision != nullptr)
+          //  collision = pods[i].collision(checkpoints[pods[i].nextCheckpointId]);
+            if (collision != nullptr && collision->t + t < 1.0 && (firstCol == nullptr || collision->t < firstCol->t)) {
+                firstCol = collision;
                 index = i;
+                //cerr << "NEXT CHECKPOINT LENGTH && ID " <<  << endl;
+                //cerr << "collision->t == " << collision->t << endl;
+            }
         }
-        if (collision == nullptr) {
+        if (firstCol == nullptr) {
             for (int i = 0; i < 2; i++) {
                 pods[i].move(1.0 - t);
             }
@@ -342,14 +356,17 @@ void play(Pod pods[2], Checkpoint checkpoints[]) {
         } else {
 
             for (int i = 0; i < 2; i++) {
-                pods[i].move(collision->t);
+                pods[i].move(firstCol->t);
             }
             //static_cast<Pod &>(collision->a).bounceWithCheckpoint(static_cast<Checkpoint &>(collision->b));
-            pods[index].bounceWithCheckpoint(static_cast<Checkpoint &>(collision->b));
-            t += collision->t + 0.2;
+          //  pods[index].bounceWithCheckpoint(static_cast<Checkpoint &>(firstCol->b));
+            t += firstCol->t;
+            if (t == 0.0)
+                t = 1.0;
         }
     }
     for (int i = 0; i < 2; i++) {
+//        pods[i].move(1.0);
         pods[i].end();
     }
 }
@@ -361,8 +378,16 @@ class Solution {
         Move moves2[6];
         void score(Checkpoint *checkpoints, Pod currentPods[2], float result[2]) {
             Pod pods[2];
+            if (currentPods[0].checkpointsCount == 0 || currentPods[1].checkpointsCount == 0) {
+                cerr << "checkpointsLength 2 == " << currentPods[0].checkpointsCount << endl;
+                cerr << "checkpointsLength 2 == " << currentPods[1].checkpointsCount << endl;
+            }
             pods[0] = currentPods[0];
             pods[1] = currentPods[1];
+            if (pods[0].checkpointsCount == 0 || pods[1].checkpointsCount == 0) {
+                cerr << "checkpointsLength 2 == " << pods[0].checkpointsCount << endl;
+                cerr << "checkpointsLength 2 == " << pods[1].checkpointsCount << endl;
+            }
             for (int i = 0; i < 6; i++) {
                 pods[0] = moves1[i];
                 pods[1] = moves2[i];
@@ -386,12 +411,14 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[5])
             solutions[i].moves2[j] = previousSol[i].moves2[j];
         }
     }
-    float minScore[2] = {-1000000000, -1000000000};
+    float minScore[2] = {-1000000, -1000000};
     float amplitude = 1.0;
     Solution nextGen[5];
     int iMove1 = 0;
     int iMove2 = 0;
     int randomIndex = 0;
+    cerr << "checkpointsLength 1 == " << pods[0].checkpointsCount << endl;
+    cerr << "checkpointsLength 1 == " << pods[1].checkpointsCount << endl;
     auto end = std::chrono::steady_clock::now();
     while (chrono::duration_cast<chrono::milliseconds>(end - start).count() < 75) {
       int tmpRand = randomIndex;
@@ -400,6 +427,10 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[5])
         } while (tmpRand == randomIndex);
         Solution solution = solutions[randomIndex];
         solution.score(checkpoints, pods, currentScore);
+     //   if (frame >= 96) {   
+       // cerr << currentScore[0] << endl;
+       // cerr << currentScore[1] << endl;
+       // }
         if (currentScore[0] >= minScore[0] || currentScore[1] >= minScore[1]) {
                 if (currentScore[0] >= minScore[0]) {
                     finalMove.moves1[0] = solution.moves1[0];
@@ -505,10 +536,13 @@ int main()
         
         cin >> opponnent[0].x >> opponnent[0].y >> opponnent[0].vx >> opponnent[0].vy >> opponnent[0].angle >> opponnent[0].nextCheckpointId; cin.ignore();
         cin >> opponnent[1].x >> opponnent[1].y >> opponnent[1].vx >> opponnent[1].vy >> opponnent[1].angle >> opponnent[1].nextCheckpointId; cin.ignore();
+        
+        cerr << "checkpointsLength == " << pods[0].checkpointsCount << endl;
+        cerr << "checkpointsLength == " << pods[1].checkpointsCount << endl;
     //    cerr << "PODS x == " << pods[0].x << " y = " << pods[0].y << endl;
        // cerr << "PODS2 x == " << pods[1].x << " y = " << pods[1].y << endl;
        makeSolution(pods, checkpoints, solutions);
-       Move tmp = Move(rand() % 36 - 18 + 1, rand() % 100);
+      Move tmp = Move(rand() % 36 - 18 + 1, rand() % 100);
        for (int i = 0; i < 5; i++) {
            for (int j = 5; j >= 0; j--) {
                 Move otherTmp = solutions[i].moves1[j];
@@ -521,8 +555,8 @@ int main()
 
 
     }
-}*/
-
+}
+*/
 int main()
 {
     int laps;
