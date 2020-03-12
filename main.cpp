@@ -10,6 +10,7 @@
 using namespace std;
 
 #define MAX_POP 10000
+#define MAX_TURN 6
 
 static int frame = 0;
 auto start = std::chrono::steady_clock::now();
@@ -436,13 +437,13 @@ void play(Pod pods[2], Checkpoint checkpoints[]) {
 class Solution {
     public:
         Solution() {};
-        Move moves1[6];
-        Move moves2[6];
+        Move moves1[MAX_TURN];
+        Move moves2[MAX_TURN];
         void score(Checkpoint *checkpoints, Pod currentPods[2], float result[2]) {
             Pod pods[2];
             pods[0] = currentPods[0];
             pods[1] = currentPods[1];
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < MAX_TURN; i++) {
                 pods[0] = moves1[i];
                 pods[1] = moves2[i];
                 play(pods, checkpoints);
@@ -460,7 +461,7 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
     Solution finalMove;
     float currentScore[2] = {0, 0};
     for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < 6; j++) {
+        for (int j = 0; j < MAX_TURN; j++) {
             solutions[i].moves1[j] = previousSol[i].moves1[j];
             solutions[i].moves2[j] = previousSol[i].moves2[j];
         }
@@ -486,7 +487,7 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
                     minScore[0] = currentScore[0];
                     if (iMove1 >= MAX_POP)
                         iMove1 = MAX_POP - 1;
-                    for (int y = 0; y < 6; y++) {
+                    for (int y = 0; y < MAX_TURN; y++) {
                         nextGen[iMove1].moves1[y] = solution.moves1[y];
                     }
                     iMove1++;
@@ -496,14 +497,14 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
                     minScore[1] = currentScore[1];
                     if (iMove2 >= MAX_POP)
                         iMove2 = MAX_POP - 1;
-                    for (int y = 0; y < 6; y++) {
+                    for (int y = 0; y < MAX_TURN; y++) {
                         nextGen[iMove2].moves2[iMove2] = solution.moves2[y];
                     }
                     iMove2++;
                 }
         } else {
             if (rand() % 3 == 0) {
-                for (int y = 0; y < 6; y++) {
+                for (int y = 0; y < MAX_TURN; y++) {
                     if (iMove1 < MAX_POP)
                         nextGen[iMove1].moves1[y] = solution.moves1[y];
                     if (iMove2 < MAX_POP)
@@ -526,7 +527,7 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
             iMove1 = 0;
             iMove2 = 0;
             for (int sol_index = 0; sol_index < MAX_POP; sol_index++) {
-                for (int y = 0; y < 6; y++) {
+                for (int y = 0; y < MAX_TURN; y++) {
                     if (rand() % 3 == 0) {
                         nextGen[sol_index].moves1[y].mutate(amplitude);
                         nextGen[sol_index].moves2[y].mutate(amplitude);
@@ -542,78 +543,12 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
     pods[0].output(finalMove.moves1[0]);
     pods[1].output(finalMove.moves2[0]);
     for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < 6; j++) {
+        for (int j = 0; j < MAX_TURN; j++) {
             previousSol[i].moves1[j] = solutions[i].moves1[j];
             previousSol[i].moves2[j] = solutions[i].moves2[j];
         }
     }
-}/*
-int main()
-{
-    int laps;
-    int checkpointsLength;
-    Pod pods[2];
-    Pod opponnent[2];
-    int currentCheckpointIndex = 0;
-    Solution solutions[MAX_POP];
-
-
-    cin >> laps; cin.ignore();
-    cin >> checkpointsLength; cin.ignore();
-    pods[0].checkpointsCount = checkpointsLength;
-    pods[1].checkpointsCount = checkpointsLength;
-    Checkpoint checkpoints[checkpointsLength];
-    for (int i = 0; i < checkpointsLength; i++) {
-        cin >> checkpoints[i].x >> checkpoints[i].y; cin.ignore();
-        cerr << "Checkpoints == " << checkpoints[i].x << " " << checkpoints[i].y << endl;;
-    }
-    for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < 6; j++) {
-            solutions[i].moves1[j] = Move(rand() % 37 - 18, 100);
-            solutions[i].moves2[j] = Move(rand() % 37 - 18, 100);
-        }
-    }
-    // game loop
-    while (1) {
-        cin >> pods[0].x >> pods[0].y >> pods[0].vx >> pods[0].vy >> pods[0].angle >> pods[0].nextCheckpointId; cin.ignore();
-        cin >> pods[1].x >> pods[1].y >> pods[1].vx >> pods[1].vy >> pods[1].angle >> pods[1].nextCheckpointId; cin.ignore();
-
-        cin >> opponnent[0].x >> opponnent[0].y >> opponnent[0].vx >> opponnent[0].vy >> opponnent[0].angle >> opponnent[0].nextCheckpointId; cin.ignore();
-        cin >> opponnent[1].x >> opponnent[1].y >> opponnent[1].vx >> opponnent[1].vy >> opponnent[1].angle >> opponnent[1].nextCheckpointId; cin.ignore();
-        
-        if (pods[0].angle == - 1) {
-            pods[0].angle = pods[0].getAngle(checkpoints[1]);
-            pods[1].angle = pods[1].getAngle(checkpoints[1]);
-            pods[0].vx = pods[0].x - checkpoints[1].x;
-            pods[0].vy = pods[0].y - checkpoints[1].y;
-            cout << checkpoints[1].x << " " << checkpoints[1].y << " " << 100 << endl;
-            cout << checkpoints[1].x << " " << checkpoints[1].y << " " << 100 << endl;
-        } else {
-            makeSolution(pods, checkpoints, solutions);
-            Move tmp = Move(rand() % 37 - 18, 100);
-            for (int i = 0; i < MAX_POP; i++) {
-                for (int j = 5; j >= 0; j--) {
-                    Move otherTmp = solutions[i].moves1[j];
-                    solutions[i].moves1[j] = tmp;
-                    tmp = otherTmp;                
-                }
-            }     
-        }
-        cerr << pods[0].x << " y= " << pods[0].y << " vx = " << pods[0].vx << " vy = " << pods[0].vy << " angle = " <<  pods[0].angle << " nextcheckpointID = " << pods[0].nextCheckpointId << endl;
-        cerr << pods[1].x << " y= " << pods[1].y << " vx = " << pods[1].vx << " vy = " << pods[1].vy << " angle = " <<  pods[1].angle << " nextcheckpointID = " << pods[1].nextCheckpointId << endl;
-
-        
-        cerr << "checkpointsLength == " << pods[0].checkpointsCount << endl;
-        cerr << "checkpointsLength == " << pods[1].checkpointsCount << endl;
-    //    cerr << "PODS x == " << pods[0].x << " y = " << pods[0].y << endl;
-       // cerr << "PODS2 x == " << pods[1].x << " y = " << pods[1].y << endl;
-       
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
-
-
-    }
-}*/
+}
 /*int main()
 {
     int laps;
@@ -634,7 +569,7 @@ int main()
         cerr << "Checkpoints == " << checkpoints[i].x << " " << checkpoints[i].y << endl;;
     }
     for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < 6; j++) {
+        for (int j = 0; j < MAX_TURN; j++) {
             solutions[i].moves1[j] = Move(rand() % 37 - 18, 100);
             solutions[i].moves2[j] = Move(rand() % 37 - 18, 100);
         }
@@ -652,13 +587,13 @@ int main()
             pods[1].angle = pods[1].getAngle(checkpoints[1]);
             pods[0].vx = pods[0].x - checkpoints[1].x;
             pods[0].vy = pods[0].y - checkpoints[1].y;
-            cout << checkpoints[1].x << " " << checkpoints[1].y << " " << 100 << endl;
+            cout << checkpoints[1].x << " " << checkpoints[1].y << " BOOST" << endl;
             cout << checkpoints[1].x << " " << checkpoints[1].y << " " << 100 << endl;
         } else {
             makeSolution(pods, checkpoints, solutions);
             Move tmp = Move(rand() % 37 - 18, 100);
             for (int i = 0; i < MAX_POP; i++) {
-                for (int j = MAX_POP; j >= 0; j--) {
+                for (int j = MAX_TURN - 1; j >= 0; j--) {
                     Move otherTmp = solutions[i].moves1[j];
                     solutions[i].moves1[j] = tmp;
                     tmp = otherTmp;                
@@ -690,7 +625,7 @@ int main()
     Solution solutions[MAX_POP];
 
     for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < 6; j++) {
+        for (int j = 0; j < MAX_TURN; j++) {
             solutions[i].moves1[j] = Move(rand() % 36 - 18 + 1, rand() % 100 + 1 >= 20 ? 100 : 0);
             solutions[i].moves2[j] = Move(rand() % 36 - 18 + 1, rand() % 100 + 1>= 20 ? 100 : 0);
         }
