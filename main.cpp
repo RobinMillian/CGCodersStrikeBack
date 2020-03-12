@@ -12,8 +12,6 @@ using namespace std;
 #define MAX_POP 10000
 #define MAX_TURN 6
 
-static int frame = 0;
-auto start = std::chrono::steady_clock::now();
 
 class Point {
     public:
@@ -58,7 +56,6 @@ class Unit : public Point {
         float r;
         float vx;
         float vy;
-        bool shield = false;
         Unit &operator=(const Unit &a);
         Coll *collision(const Unit &u);
         void bounce(Unit &u);
@@ -85,30 +82,21 @@ Unit &Unit::operator=(const Unit &a) {
         vy = a.vy;
         x = a.x;
         y = a.y;
-        shield = a.shield;
         return *this;
 }
 
 Coll *Unit::collision(const Unit &u) {
-    // dist carré
     float dist = distSquare(u);
-
-    // Somme des rayons au carré
     float sr = (r + u.r)*(r + u.r);
 
-    // On prend tout au carré pour éviter d'avoir à appeler un sqrt inutilement. C'est mieux pour les performances
-
     if (dist < sr) {
-//        cerr << "Objet l'un sur l'autre " << endl;
-        // Les objets sont déjà l'un sur l'autre. On a donc une collision immédiate
         return new Coll(*this, u, 0.0);
     }
 
-    // Optimisation. Les objets ont la même vitesse ils ne pourront jamais se rentrer dedans
+    // Cannot collide if object have same speed
     if (vx == u.vx && vy == u.vy) {
         return nullptr;
     }
-    // On se met dans le référentiel de u. u est donc immobile et se trouve sur le point (0,0) après ça
     float _x = x - u.x;
     float _y = y - u.y;
     Point myp = Point(_x, _y);
@@ -116,42 +104,30 @@ Coll *Unit::collision(const Unit &u) {
     float _vy = vy - u.vy;
     Point up(0, 0);
 
-    // On cherche le point le plus proche de u (qui est donc en (0,0)) sur la droite décrite par notre vecteur de vitesse
-/*     cerr << x << endl;
-    cerr << y << endl;
-    cerr << vx << endl;
-    cerr << vy << endl;
- */    Point p = up.closest(myp, Point(_x + _vx, _y + _vy));
+    Point p = up.closest(myp, Point(_x + _vx, _y + _vy));
 
-    // dist au carré entre u et le point le plus proche sur la droite décrite par notre vecteur de vitesse
     float pdist = up.distSquare(p);
-
-    // dist au carré entre nous et ce point
     float mypdist = myp.distSquare(p);
 
-    // Si la dist entre u et cette droite est inférieur à la somme des rayons, alors il y a possibilité de collision
     if (pdist < sr) {
-        // Notre vitesse sur la droite
         float length = sqrt(_vx*_vx + _vy*_vy);
 
-        // On déplace le point sur la droite pour trouver le point d'impact
+        // find impact point
         float backdist = sqrt(sr - pdist);
         p.x = p.x - backdist * (_vx / length);
         p.y = p.y - backdist * (_vy / length);
 
-        // Si le point s'est éloigné de nous par rapport à avant, c'est que notre vitesse ne va pas dans le bon sens
         if (myp.distSquare(p) > mypdist) {
             return nullptr;
         }
 
         pdist = p.dist(myp);
 
-        // Le point d'impact est plus loin que ce qu'on peut parcourir en un seul tour
         if (pdist > length) {
             return nullptr;
         }
 
-        // Temps nécessaire pour atteindre le point d'impact
+        // Computed time before impact
         float t = pdist / length;
 
         return new Coll(*this, u, t);
@@ -160,41 +136,39 @@ Coll *Unit::collision(const Unit &u) {
 }
 
 void Unit::bounce(Unit &u) {
-     // Si un pod a son bouclier d'activé, sa masse est de 10, sinon elle est de 1
-        float m1 = shield ? 10 : 1;
-        float m2 = u.shield ? 10 : 1;
-
-        // Si les masses sont égales, le coefficient sera de 2. Sinon il sera de 11/10
+        //mass can be change if we want to implement shield
+        float m1 = 1;
+        float m2 = 1;
+        // If mass are equals the coef will be 2 otherwise it will be 11/10
         float mcoeff = (m1 + m2) / (m1 * m2);
 
         float nx = x - u.x;
         float ny = y - u.y;
 
-        // Distance au carré entre les 2 pods. Cette valeur pourrait être écrite en dure car ce sera toujours 800²
+        // Dist² between two pods
         float nxnysquare = nx*nx + ny*ny;
 
         float dvx = vx - u.vx;
         float dvy = vy - u.vy;
 
-        // fx et fy sont les composantes du vecteur d'impact. product est juste la pour optimiser
+        // fx and fy are the impact vector
         float product = nx*dvx + ny*dvy;
         float fx = (nx * product) / (nxnysquare * mcoeff);
         float fy = (ny * product) / (nxnysquare * mcoeff);
 
-        // On applique une fois le vecteur d'impact à chaque pod proportionnellement à sa masse
+        // Apply one time the impact vector of each pods depending on mass
         vx -= fx / m1;
         vy -= fy / m1;
         u.vx += fx / m2;
         u.vy += fy / m2;
 
-        // Si la norme du vecteur d'impact est inférieur à 120, on change sa norme pour le mettre à 120
         float impulse = sqrt(fx*fx + fy*fy);
         if (impulse < 120.0) {
             fx = fx * 120.0 / impulse;
             fy = fy * 120.0 / impulse;
         }
 
-        // On applique une deuxième fois le vecteur d'impact à chaque pod proportionnellement à sa masse
+        // Apply again the impact vector
         vx -= fx / m1;
         vy -= fy / m1;
         u.vx += fx / m2;
@@ -215,7 +189,6 @@ class Move {
             float ramax = angle + 36.0 * amplitude;
 
             if (ramin < -18.0) {
-//                cerr << "toto " << endl;
                 ramin = -18.0;
             }
 
@@ -253,8 +226,6 @@ class Pod: public Unit {
         int nextCheckpointId = 1;
         int checked = 0;
         int timeout = 100;
-        Pod *partner;
-        bool shield = false;
 
         float getAngle(const Point &p) const {
             float d = dist(p);
@@ -278,8 +249,6 @@ class Pod: public Unit {
             nextCheckpointId = p.nextCheckpointId;
             checked = p.checked;
             timeout = p.timeout;
-            partner = p.partner;
-            shield = p.shield;
             return *this;
         }
         Pod &operator=(const Move &m) {
@@ -316,9 +285,6 @@ class Pod: public Unit {
         };
 
         void boost(const int thurst) {
-            if (shield) {
-                return;
-            }
 
             float ra = angle * 3.14 / 180.0;
 
@@ -360,25 +326,16 @@ class Pod: public Unit {
             float cvy = checkpoint.y - y;
             float a = (cvx * vx + cvy * vy) / (dist(checkpoint) * sqrt((vx * vx) + (vy * vy)));
             a = acos(a);
-            
-/*            float a = getAngle(checkpoint);
-            float right = angle <= a ? a - angle : 360.0 - angle + a;
-            float left = angle >= a ? angle - a : angle + 360.0 - a;
-            if (frame == 99) {
-                cerr << "diff angle == " << a << "x = " << x << "y = " << y << " vx = "<< vx << " vy = " << vy <<endl;
-                cerr << "ternaire == " << (a == 0.0 ? 1 : a) << endl;
-            }*/
-            return   (checked * 50000) / (a == 0.0 ? 1 : a) - (dist(checkpoint) * 0.01) /*- ((diffAngle(checkpoint) > 0 ? -diffAngle(checkpoint) : diffAngle(checkpoint)) * 0.01)*/;
+
+            return   (checked * 50000) / (a == 0.0 ? 1 : a) - (dist(checkpoint) * 0.01);
         };
 
         void output(Move &move) {
             float a = angle + move.angle;
 
             if (a >= 360.0) {
-                cerr << "supp at 360 " << endl;
                 a = a - 360.0;
             } else if (a < 0.0) {
-                cerr << "inf at 0.0 " << endl;
                 a += 360.0;
             }
             a = a * 3.14 / 180.0;
@@ -454,11 +411,11 @@ class Solution {
 };
 
 void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX_POP]) {
-    start = std::chrono::steady_clock::now();
-    frame++;
-    cerr << "frame == " << frame << endl;
+    auto start = std::chrono::steady_clock::now();
     Solution solutions[MAX_POP];
     Solution finalMove;
+    Solution nextGen[MAX_POP];
+
     float currentScore[2] = {0, 0};
     for (int i = 0; i < MAX_POP; i++) {
         for (int j = 0; j < MAX_TURN; j++) {
@@ -466,13 +423,14 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
             solutions[i].moves2[j] = previousSol[i].moves2[j];
         }
     }
+
     float minScore[2] = {-100000, -100000};
     float amplitude = 1.0;
-    Solution nextGen[MAX_POP];
     int iMove1 = 0;
     int iMove2 = 0;
     int randomIndex = 0;
     auto end = std::chrono::steady_clock::now();
+
     while (chrono::duration_cast<chrono::milliseconds>(end - start).count() < 75) {
       int tmpRand = randomIndex;
         do {
@@ -513,12 +471,8 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
                 iMove1++;
                 iMove2++;
             }
-//            minScore[0] = currentScore[0];
- //           minScore[1] = currentScore[1];
         }
         if (iMove1 >= MAX_POP && iMove2 >= MAX_POP) {
-           // cerr << minScore[0] << endl;
-        //    cerr << minScore[1] << endl;
             if (amplitude > 0.1) {
                 amplitude -= 0.01;
             } else {
@@ -549,7 +503,8 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
         }
     }
 }
-/*int main()
+
+int main()
 {
     int laps;
     int checkpointsLength;
@@ -564,9 +519,9 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
     pods[0].checkpointsCount = checkpointsLength;
     pods[1].checkpointsCount = checkpointsLength;
     Checkpoint checkpoints[checkpointsLength];
+
     for (int i = 0; i < checkpointsLength; i++) {
         cin >> checkpoints[i].x >> checkpoints[i].y; cin.ignore();
-        cerr << "Checkpoints == " << checkpoints[i].x << " " << checkpoints[i].y << endl;;
     }
     for (int i = 0; i < MAX_POP; i++) {
         for (int j = 0; j < MAX_TURN; j++) {
@@ -574,6 +529,7 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
             solutions[i].moves2[j] = Move(rand() % 37 - 18, 100);
         }
     }
+
     // game loop
     while (1) {
         cin >> pods[0].x >> pods[0].y >> pods[0].vx >> pods[0].vy >> pods[0].angle >> pods[0].nextCheckpointId; cin.ignore();
@@ -600,70 +556,5 @@ void makeSolution(Pod pods[2], Checkpoint *checkpoints, Solution previousSol[MAX
                 }
             }     
         }
-        cerr << pods[0].x << " y= " << pods[0].y << " vx = " << pods[0].vx << " vy = " << pods[0].vy << " angle = " <<  pods[0].angle << " nextcheckpointID = " << pods[0].nextCheckpointId << endl;
-        cerr << pods[1].x << " y= " << pods[1].y << " vx = " << pods[1].vx << " vy = " << pods[1].vy << " angle = " <<  pods[1].angle << " nextcheckpointID = " << pods[1].nextCheckpointId << endl;
-
-        
-        cerr << "checkpointsLength == " << pods[0].checkpointsCount << endl;
-        cerr << "checkpointsLength == " << pods[1].checkpointsCount << endl;
-    //    cerr << "PODS x == " << pods[0].x << " y = " << pods[0].y << endl;
-       // cerr << "PODS2 x == " << pods[1].x << " y = " << pods[1].y << endl;
-       
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
-
-
-    }
-}*/
-int main()
-{
-    int laps;
-    int checkpointsLength;
-    Pod pods[2];
-    Pod opponnent[2];
-    int currentCheckpointIndex = 0;
-    Solution solutions[MAX_POP];
-
-    for (int i = 0; i < MAX_POP; i++) {
-        for (int j = 0; j < MAX_TURN; j++) {
-            solutions[i].moves1[j] = Move(rand() % 36 - 18 + 1, rand() % 100 + 1 >= 20 ? 100 : 0);
-            solutions[i].moves2[j] = Move(rand() % 36 - 18 + 1, rand() % 100 + 1>= 20 ? 100 : 0);
-        }
-    }
-
-/*    cin >> laps; cin.ignore();
-    cin >> checkpointsLength; cin.ignore();*/
-    laps = 3;
-    checkpointsLength = 2;
-    Checkpoint checkpoints[checkpointsLength];
-    
- /*   for (int i = 0; i < checkpointsLength; i++) {
-        int x;
-        int y;
-        cin >> checkpoints[i].x >> checkpoints[i].y; cin.ignore();
-    } */
-    checkpoints[0].x = 13066;
-    checkpoints[0].y = 1925;
-    checkpoints[1].x = 6573;
-    checkpoints[1].y = 7821;
-
-    pods[0].x = 12111; pods[0].y = 3643; pods[0].vx = 101; pods[0].vy = 158; pods[0].angle = 75; pods[0].nextCheckpointId = 1;
-    pods[1].x = 11441; pods[1].y = 2896; pods[1].vx = 125; pods[1].vy = 141; pods[1].angle = 63; pods[0].nextCheckpointId = 1;
-    pods[0].checkpointsCount = checkpointsLength;
-    pods[1].checkpointsCount = checkpointsLength;
-    // game loop
-    while (1) {
-        cout << "toto" << endl;
-/*        cin >> pods[0].x >> pods[0].y >> pods[0].vx >> pods[0].vy >> pods[0].angle >> pods[0].nextCheckpointId; cin.ignore();
-        cin >> pods[1].x >> pods[1].y >> pods[1].vx >> pods[1].vy >> pods[1].angle >> pods[1].nextCheckpointId; cin.ignore();
- 
-        cin >> opponnent[0].x >> opponnent[0].y >> opponnent[0].vx >> opponnent[0].vy >> opponnent[0].angle >> opponnent[0].nextCheckpointId; cin.ignore();
-        cin >> opponnent[1].x >> opponnent[1].y >> opponnent[1].vx >> opponnent[1].vy >> opponnent[1].angle >> opponnent[1].nextCheckpointId; cin.ignore();*/
-
-        makeSolution(pods, checkpoints, solutions);
-        // Write an action using cout. DON'T FORGET THE "<< endl"
-        // To debug: cerr << "Debug messages..." << endl;
-
-
     }
 }
